@@ -19,7 +19,8 @@ module Xeroizer
 
     ACCEPT_MIME_MAP = {
       :pdf  => 'application/pdf',
-      :json => 'application/json'
+      :json => 'application/json',
+      :xml  => 'application/xml',
     }
 
     # Shortcut method for #http_request with `method` = :get.
@@ -79,7 +80,11 @@ module Xeroizer
             when Symbol then  ACCEPT_MIME_MAP[response_type]
             else              response_type
           end
+        else
+          headers['Accept'] = "application/xml"
         end
+
+        raw_body = params.delete(:raw_body) ? body : {:xml => body}
 
         if params.any?
           url += "?" + params.map {|key,value| "#{CGI.escape(key.to_s)}=#{CGI.escape(value.to_s)}"}.join("&")
@@ -95,8 +100,6 @@ module Xeroizer
         begin
           attempts += 1
           logger.info("XeroGateway Request: #{method.to_s.upcase} #{uri.request_uri}") if self.logger
-
-          raw_body = params.delete(:raw_body) ? body : {:xml => body}
 
           response = case method
             when :get   then    client.get(uri.request_uri, headers)
@@ -148,6 +151,10 @@ module Xeroizer
     end
 
     def handle_oauth_error!(response)
+        if response.plain_body == "You do not have permission to access this resource." || response.plain_body.match(/API access not authorised/i)
+          raise LackingPermissionToAccessRecord.new(response)
+        end
+
         error_details = CGI.parse(response.plain_body)
         description   = error_details["oauth_problem_advice"].first
         problem = error_details["oauth_problem"].first
