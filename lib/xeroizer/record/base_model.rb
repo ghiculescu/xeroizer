@@ -5,7 +5,6 @@ module Xeroizer
   module Record
 
     class BaseModel
-
       include ClassLevelInheritableAttributes
       class_inheritable_attributes :api_controller_name
 
@@ -90,7 +89,6 @@ module Xeroizer
         def pad_api_response?
           self.before_padding && self.after_padding
         end
-
       end
 
       public
@@ -139,49 +137,47 @@ module Xeroizer
         build(attributes).tap { |resource| resource.save }
       end
 
-        # Retreive full record list for this model.
-        def all(options = {})
-          raise MethodNotAllowed.new(self, :all) unless self.class.permissions && self.class.permissions[:read]
-          response_body = http_get(parse_params(options))
-          response = parse_response(response_body, options)
-          response_items = response.response_items || []
-        end
-
-        # Helper method to retrieve just the first element from
-        # the full record list.
-        def first(options = {})
-          raise MethodNotAllowed.new(self, :all) unless self.class.permissions && self.class.permissions[:read]
-          result = all(options)
-          result.first if result.is_a?(Array)
-        end
+      # Retreive full record list for this model.
+      def all(options = {})
+        raise MethodNotAllowed.new(self, :all) unless self.class.permissions && self.class.permissions[:read]
+        response_body = http_get(parse_params(options))
+        response = parse_response(response_body, options)
+        response_items = response.response_items || []
       end
 
-        # Retrieve record matching the passed in ID.
-        def find(id, options = {})
-          raise MethodNotAllowed.new(self, :all) unless self.class.permissions && self.class.permissions[:read]
-          response_body = @application.http_get(@application.client, "#{url}/#{CGI.escape(id)}", options)
-          response = parse_response(response_body, options)
-          result = response.response_items.first if response.response_items.is_a?(Array)
-          result.complete_record_downloaded = true if result
-          result
-        end
+      # Helper method to retrieve just the first element from
+      # the full record list.
+      def first(options = {})
+        raise MethodNotAllowed.new(self, :all) unless self.class.permissions && self.class.permissions[:read]
+        result = all(options)
+        result.first if result.is_a?(Array)
+      end
 
-        def save_records(records, chunk_size = DEFAULT_RECORDS_PER_BATCH_SAVE)
-          no_errors = true
-          return false unless records.all?(&:valid?)
+      # Retrieve record matching the passed in ID.
+      def find(id, options = {})
+        raise MethodNotAllowed.new(self, :all) unless self.class.permissions && self.class.permissions[:read]
+        response_body = @application.http_get(@application.client, "#{url}/#{CGI.escape(id)}", options)
+        response = parse_response(response_body, options)
+        result = response.response_items.first if response.response_items.is_a?(Array)
+        result.complete_record_downloaded = true if result
+        result
+      end
 
-          actions = records.group_by {|o| o.new_record? ? o.api_method_for_creating : o.api_method_for_updating }
-          actions.each_pair do |http_method, records_for_method|
-            records_for_method.each_slice(chunk_size) do |some_records|
-              request = to_bulk_xml(some_records)
-              response = parse_response(self.send(http_method, request, {:summarizeErrors => false}))
-              response.response_items.each_with_index do |record, i|
-                if record and record.is_a?(model_class)
-                  some_records[i].attributes = record.non_calculated_attributes
-                  some_records[i].errors = record.errors
-                  no_errors = record.errors.nil? || record.errors.empty? if no_errors
-                  some_records[i].saved!
-                end
+      def save_records(records, chunk_size = DEFAULT_RECORDS_PER_BATCH_SAVE)
+        no_errors = true
+        return false unless records.all?(&:valid?)
+
+        actions = records.group_by {|o| o.new_record? ? o.api_method_for_creating : o.api_method_for_updating }
+        actions.each_pair do |http_method, records_for_method|
+          records_for_method.each_slice(chunk_size) do |some_records|
+            request = to_bulk_xml(some_records)
+            response = parse_response(self.send(http_method, request, {:summarizeErrors => false}))
+            response.response_items.each_with_index do |record, i|
+              if record and record.is_a?(model_class)
+                some_records[i].attributes = record.non_calculated_attributes
+                some_records[i].errors = record.errors
+                no_errors = record.errors.nil? || record.errors.empty? if no_errors
+                some_records[i].saved!
               end
             end
           end
@@ -207,69 +203,68 @@ module Xeroizer
         end
       end
 
-        def parse_response(response_body, options = {})
-          format = options[:api_format] || @application.api_format
-          case format
-          when :json
-            parse_json_response(response_body, options)
-          else
-            parse_xml_response(response_body, options)
-          end
+      def parse_response(response_body, options = {})
+        format = options[:api_format] || @application.api_format
+        case format
+        when :json
+          parse_json_response(response_body, options)
+        else
+          parse_xml_response(response_body, options)
         end
       end
 
       protected
-        def parse_json_response(response_body, options = {})
-          json = ::JSON.parse(response_body)
-          response = Response.new
+      def parse_json_response(response_body, options = {})
+        json = ::JSON.parse(response_body)
+        response = Response.new
 
-          model_name_to_parse =
-           if self.respond_to?(:model_name_to_parse)
-             self.model_name_to_parse
-           else
-             self.model_name
-           end
+        model_name_to_parse =
+          if self.respond_to?(:model_name_to_parse)
+            self.model_name_to_parse
+          else
+            self.model_name
+          end
 
-          iterable = json[model_name_to_parse.camelize(:lower).pluralize] || json[model_name_to_parse.camelize(:lower)]
-          iterable = [iterable] if iterable.is_a?(Hash)
+        iterable = json[model_name_to_parse.camelize(:lower).pluralize] || json[model_name_to_parse.camelize(:lower)]
+        iterable = [iterable] if iterable.is_a?(Hash)
 
-          iterable.each {|object|
-            object = object.map {|key, value| [key.underscore.to_sym, value]}.to_h
-            response_object = self.model_class.build(object, self)
-            self.model_class.fields.each {|field, field_props|
-              if field_props[:type] == :has_many && object[field]
-                response_object[field] = []
-                object[field].each {|child_object|
-                  model_class_name = field_props[:api_child_name].to_sym # TimesheetLine
-                  model_klass_obj = response_object.new_model_class(model_class_name)
-                  response_object[field] << model_klass_obj.model_class.build(child_object.map {|key, value| [key.underscore.to_sym, value]}.to_h, model_klass_obj)
-                }
-              end
-            }
-            response.response_items << response_object
-          }
-
-          response
-        end
-
-        def parse_xml_response(response_body, options = {})
-          Response.parse(response_body, options) do | response, elements, response_model_name |
-            if self.class.pad_api_response?
-              @response = response
-              parse_records(response, Nokogiri::XML("#{self.class.before_padding}#{elements.to_xml}#{self.class.after_padding}").root.elements, paged_records_requested?(options), (options[:base_module] || Xeroizer::Record))
-            elsif model_name == response_model_name
-              @response = response
-              parse_records(response, elements, paged_records_requested?(options), (options[:base_module] || Xeroizer::Record))
-            elsif self.class.standalone_model && self.class.xml_root_name == elements.first.parent.name
-              @response = response
-              parse_records(response, elements, paged_records_requested?(options), (options[:base_module] || Xeroizer::Record), true)
+        iterable.each {|object|
+          object = object.map {|key, value| [key.underscore.to_sym, value]}.to_h
+          response_object = self.model_class.build(object, self)
+          self.model_class.fields.each {|field, field_props|
+            if field_props[:type] == :has_many && object[field]
+              response_object[field] = []
+              object[field].each {|child_object|
+                model_class_name = field_props[:api_child_name].to_sym # TimesheetLine
+                model_klass_obj = response_object.new_model_class(model_class_name)
+                response_object[field] << model_klass_obj.model_class.build(child_object.map {|key, value| [key.underscore.to_sym, value]}.to_h, model_klass_obj)
+              }
             end
+          }
+          response.response_items << response_object
+        }
+
+        response
+      end
+
+      def parse_xml_response(response_body, options = {})
+        Response.parse(response_body, options) do | response, elements, response_model_name |
+          if self.class.pad_api_response?
+            @response = response
+            parse_records(response, Nokogiri::XML("#{self.class.before_padding}#{elements.to_xml}#{self.class.after_padding}").root.elements, paged_records_requested?(options), (options[:base_module] || Xeroizer::Record))
+          elsif model_name == response_model_name
+            @response = response
+            parse_records(response, elements, paged_records_requested?(options), (options[:base_module] || Xeroizer::Record))
+          elsif self.class.standalone_model && self.class.xml_root_name == elements.first.parent.name
+            @response = response
+            parse_records(response, elements, paged_records_requested?(options), (options[:base_module] || Xeroizer::Record), true)
           end
         end
+      end
 
-        def paged_records_requested?(options)
-          options.has_key?(:page) and options[:page].to_i >= 0
-        end
+      def paged_records_requested?(options)
+        options.has_key?(:page) and options[:page].to_i >= 0
+      end
 
       def paged_records_requested?(options)
         options.has_key?(:page) and options[:page].to_i >= 0
@@ -327,6 +322,5 @@ module Xeroizer
         self
       end
     end
-
   end
 end
