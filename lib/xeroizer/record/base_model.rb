@@ -276,39 +276,38 @@ module Xeroizer
       end
 
       # Parse the records part of the XML response and builds model instances as necessary.
-        def parse_records(response, elements, paged_results, base_module, standalone_model = false)
-          elements.each do | element |
-            new_record = model_class.build_from_node(element, self, base_module, standalone_model)
-            if element.attribute('status').try(:value) == 'ERROR'
-              new_record.errors = []
-              element.xpath('.//ValidationError').each do |err|
-                new_record.errors << err.text.gsub(/^\s+/, '').gsub(/\s+$/, '')
-              end
+      def parse_records(response, elements, paged_results, base_module, standalone_model = false)
+        elements.each do | element |
+          new_record = model_class.build_from_node(element, self, base_module, standalone_model)
+          if element.attribute('status').try(:value) == 'ERROR'
+            new_record.errors = []
+            element.xpath('.//ValidationError').each do |err|
+              new_record.errors << err.text.gsub(/^\s+/, '').gsub(/\s+$/, '')
             end
-            if standalone_model
-              if response.response_items.count == 0
-                response.response_items << new_record
-              else
-                # http://developer.xero.com/documentation/payroll-api/settings/
-                # tracking categories have subcategories of timesheet categoires and employee groups
-                # which we group together here as it's much easier to model
-                fields_to_fill = model_class.fields.find_all do |f|
-                  new_record_field = new_record[f[0]]
-                  if new_record_field.respond_to?(:count)
-                    new_record_field.count > 0
-                  else
-                    !new_record_field.nil?
-                  end
-                end
-                fields_to_fill.each {|field| response.response_items.first[field[0]] = new_record[field[0]]}
-              end
-            else
-              response.response_items << new_record
-            end
-            new_record.paged_record_downloaded = paged_results
           end
-          response.response_items
+          if standalone_model
+            if response.response_items.count == 0
+              response.response_items << new_record
+            else
+              # http://developer.xero.com/documentation/payroll-api/settings/
+              # tracking categories have subcategories of timesheet categoires and employee groups
+              # which we group together here as it's much easier to model
+              fields_to_fill = model_class.fields.find_all do |f|
+                new_record_field = new_record[f[0]]
+                if new_record_field.respond_to?(:count)
+                  new_record_field.count > 0
+                else
+                  !new_record_field.nil?
+                end
+              end
+              fields_to_fill.each {|field| response.response_items.first[field[0]] = new_record[field[0]]}
+            end
+          else
+            response.response_items << new_record
+          end
+          new_record.paged_record_downloaded = paged_results
         end
+        response.response_items
       end
 
       def to_bulk_xml(records, builder = Builder::XmlMarkup.new(:indent => 2))
