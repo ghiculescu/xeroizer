@@ -11,6 +11,8 @@ module Xeroizer
                 :default_headers, :unitdp, :before_request, :after_request, :nonce_used_max_attempts,
                 :api_format
 
+    attr_accessor :xero_url
+
     extend Forwardable
     def_delegators :client, :access_token
 

@@ -4,9 +4,9 @@ module Xeroizer
     class CreditNoteModel < BaseModel
 
       set_permissions :read, :write, :update
-      
+
       include AttachmentModel::Extensions
-      
+
       public
 
         # Retrieve the PDF version of the credit matching the `id`.
@@ -43,7 +43,7 @@ module Xeroizer
       CREDIT_NOTE_TYPES = CREDIT_NOTE_TYPE.keys.sort
 
       include Attachment::Extensions
-      
+
       set_primary_key :credit_note_id
       set_possible_primary_keys :credit_note_id, :credit_note_number
       list_contains_summary_only true
@@ -64,7 +64,6 @@ module Xeroizer
       string        :currency_code
       decimal       :currency_rate
       datetime      :fully_paid_on_date
-      boolean       :sent_to_contact
       decimal       :remaining_credit
       decimal       :applied_amount
       boolean       :has_attachments
@@ -101,10 +100,10 @@ module Xeroizer
         # Calculate sub_total from line_items.
         def sub_total(always_summary = false)
           if !always_summary && (new_record? || (!new_record? && line_items && line_items.size > 0))
-            overall_sum = (line_items || []).inject(BigDecimal('0')) { | sum, line_item | sum + line_item.line_amount }
-            
+            overall_sum = (line_items || []).inject(BigDecimal.new('0')) { | sum, line_item | sum + line_item.line_amount }
+
             # If the default amount types are inclusive of 'tax' then remove the tax amount from this sub-total.
-            overall_sum -= total_tax if line_amount_types == 'Inclusive' 
+            overall_sum -= total_tax if line_amount_types == 'Inclusive'
             overall_sum
           else
             attributes[:sub_total]
