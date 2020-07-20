@@ -31,8 +31,7 @@ require 'xeroizer/record/base'
 require 'xeroizer/record/payroll_base'
 require 'xeroizer/record/payroll_array_base'
 require 'xeroizer/configuration'
-require 'xeroizer/oauth_response_error_handler'
-require 'xeroizer/oauth2_response_handler'
+require 'xeroizer/http_response'
 
 # Include models
 ['account','address','allocation','branding_theme','bank_transaction','bank_account','contact','contact_group',
