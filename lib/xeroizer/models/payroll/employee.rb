@@ -6,14 +6,12 @@ module Xeroizer
 
         set_permissions :read, :write, :update
 
+        def create_method
+          :http_post
+        end
       end
 
       class Employee < PayrollBase
-
-        def initialize(parent)
-          super(parent)
-          self.api_method_for_updating = :http_put if json?
-        end
 
         set_primary_key :employee_id
 
@@ -41,12 +39,13 @@ module Xeroizer
         date          :termination_date
         string        :national_insurance_number # UK
         guid          :pay_run_calendar_id # UK
-        datetime_utc  :updated_date_utc, api_name: 'UpdatedDateUTC'
         date          :end_date, api_name: 'EndDate' # UK - null when employee is active
 
         belongs_to    :address, :internal_name_singular => "address", :model_name => "Address", api_name: 'address'
         belongs_to    :home_address, :internal_name_singular => "home_address", :model_name => "HomeAddress"
         belongs_to    :tax_declaration, :internal_name_singular => "tax_declaration", :model_name => "TaxDeclaration"
+        datetime_utc  :updated_date_utc, :api_name => 'UpdatedDateUTC'
+
         has_many      :bank_accounts
         belongs_to    :pay_template, :internal_name_singular => "pay_template", :model_name => "PayTemplate"
         belongs_to    :opening_balances, :internal_name_singular => "opening_balance", :model_name => "OpeningBalances"
@@ -59,6 +58,23 @@ module Xeroizer
           json? ? "employees/#{employee_id}" : super
         end
 
+        # US Payroll fields
+        string        :job_title
+        string        :employee_number
+        string        :social_security_number
+        guid          :pay_schedule_id
+        string        :employment_basis
+        guid          :holiday_group_id
+        boolean       :is_authorised_to_approve_time_off
+
+        has_many      :salary_and_wages
+        has_many      :work_locations
+        has_one       :payment_method, :model_name => "PaymentMethod"
+        has_one       :mailing_address, :internal_name_singular => "mailing_address", :model_name => "MailingAddress"
+
+        validates_presence_of :first_name, :last_name, :unless => :new_record?
+        validates_presence_of :date_of_birth
+        validates_presence_of :pay_schedule_id, :if => Proc.new { | record | !record.salary_and_wages.blank? }
       end
 
     end

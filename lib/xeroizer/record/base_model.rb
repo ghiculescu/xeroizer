@@ -10,7 +10,7 @@ module Xeroizer
       class_inheritable_attributes :api_controller_name
 
       module InvaidPermissionError; end
-      class InvalidPermissionError < StandardError
+      class InvalidPermissionError < XeroizerError
         include InvaidPermissionError
       end
       ALLOWED_PERMISSIONS = [:read, :write, :update]
@@ -29,7 +29,7 @@ module Xeroizer
 
       attr_reader :application
       attr_reader :model_name
-      attr :model_class
+      attr_writer :model_class
       attr_reader :response
 
       class << self
@@ -95,47 +95,49 @@ module Xeroizer
 
       public
 
-        def initialize(application, model_name)
-          @application = application
-          @model_name = model_name
-        end
+      def initialize(application, model_name)
+        @application = application
+        @model_name = model_name
+        @allow_batch_operations = false
+        @objects = {}
+      end
 
-        # Retrieve the controller name.
-        #
-        # Default: pluaralized model name (e.g. if the controller name is
-        # Invoice then the default is Invoices.
-        def api_controller_name
-          self.class.api_controller_name || model_name.pluralize
-        end
+      # Retrieve the controller name.
+      #
+      # Default: pluaralized model name (e.g. if the controller name is
+      # Invoice then the default is Invoices.
+      def api_controller_name
+        self.class.api_controller_name || model_name.pluralize
+      end
 
-        def model_class
-          @model_class ||= Xeroizer::Record.const_get(model_name.to_sym)
-        end
+      def model_class
+        @model_class ||= Xeroizer::Record.const_get(model_name.to_sym)
+      end
 
-        # Build a record with attributes set to the value of attributes.
-        def build(attributes = {})
-          model_class.build(attributes, self).tap do |resource|
-            mark_dirty(resource)
-          end
+      # Build a record with attributes set to the value of attributes.
+      def build(attributes = {})
+        model_class.build(attributes, self).tap do |resource|
+          mark_dirty(resource)
         end
+      end
 
-        def mark_dirty(resource)
-          if @allow_batch_operations
-            @objects[model_class] ||= {}
-            @objects[model_class][resource.object_id] ||= resource
-          end
+      def mark_dirty(resource)
+        if @allow_batch_operations
+          @objects[model_class] ||= {}
+          @objects[model_class][resource.object_id] ||= resource
         end
+      end
 
-        def mark_clean(resource)
-          if @objects and @objects[model_class]
-            @objects[model_class].delete(resource.object_id)
-          end
+      def mark_clean(resource)
+        if @objects and @objects[model_class]
+          @objects[model_class].delete(resource.object_id)
         end
+      end
 
-        # Create (build and save) a record with attributes set to the value of attributes.
-        def create(attributes = {})
-          build(attributes).tap { |resource| resource.save }
-        end
+      # Create (build and save) a record with attributes set to the value of attributes.
+      def create(attributes = {})
+        build(attributes).tap { |resource| resource.save }
+      end
 
         # Retreive full record list for this model.
         def all(options = {})
@@ -152,6 +154,7 @@ module Xeroizer
           result = all(options)
           result.first if result.is_a?(Array)
         end
+      end
 
         # Retrieve record matching the passed in ID.
         def find(id, options = {})
@@ -182,26 +185,27 @@ module Xeroizer
               end
             end
           end
-
-          no_errors
         end
 
-        def batch_save(chunk_size = DEFAULT_RECORDS_PER_BATCH_SAVE)
-          @objects = {}
-          @allow_batch_operations = true
+        no_errors
+      end
 
-          begin
-            yield
+      def batch_save(chunk_size = DEFAULT_RECORDS_PER_BATCH_SAVE)
+        @objects = {}
+        @allow_batch_operations = true
 
-            if @objects[model_class]
-              objects = @objects[model_class].values.compact
-              save_records(objects, chunk_size)
-            end
-          ensure
-            @objects = {}
-            @allow_batch_operations = false
+        begin
+          yield
+
+          if @objects[model_class]
+            objects = @objects[model_class].values.compact
+            save_records(objects, chunk_size)
           end
+        ensure
+          @objects = {}
+          @allow_batch_operations = false
         end
+      end
 
         def parse_response(response_body, options = {})
           format = options[:api_format] || @application.api_format
@@ -212,6 +216,7 @@ module Xeroizer
             parse_xml_response(response_body, options)
           end
         end
+      end
 
       protected
         def parse_json_response(response_body, options = {})
@@ -266,6 +271,9 @@ module Xeroizer
           options.has_key?(:page) and options[:page].to_i >= 0
         end
 
+      def paged_records_requested?(options)
+        options.has_key?(:page) and options[:page].to_i >= 0
+      end
 
       # Parse the records part of the XML response and builds model instances as necessary.
         def parse_records(response, elements, paged_results, base_module, standalone_model = false)
@@ -301,24 +309,25 @@ module Xeroizer
           end
           response.response_items
         end
+      end
 
-        def to_bulk_xml(records, builder = Builder::XmlMarkup.new(:indent => 2))
-          tag = (self.class.optional_xml_root_name || model_name).pluralize
-          builder.tag!(tag) do
-            records.each {|r| r.to_xml(builder) }
-          end
-        end
-
-        # Parse the response from a create/update request.
-        def parse_save_response(response_xml)
-          response = parse_response(response_xml)
-          record = response.response_items.first if response.response_items.is_a?(Array)
-          if record && record.is_a?(self.class)
-            @attributes = record.attributes
-          end
-          self
+      def to_bulk_xml(records, builder = Builder::XmlMarkup.new(:indent => 2))
+        tag = (self.class.optional_xml_root_name || model_name).pluralize
+        builder.tag!(tag) do
+          records.each {|r| r.to_xml(builder) }
         end
       end
+
+      # Parse the response from a create/update request.
+      def parse_save_response(response_xml)
+        response = parse_response(response_xml)
+        record = response.response_items.first if response.response_items.is_a?(Array)
+        if record && record.is_a?(self.class)
+          @attributes = record.attributes
+        end
+        self
+      end
+    end
 
   end
 end

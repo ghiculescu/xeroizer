@@ -1,19 +1,19 @@
 module Xeroizer
   module Report
     module CellXmlHelper
-    
+
       def self.included(base)
         base.extend(ClassMethods)
         base.send :include, InstanceMethods
       end
-    
+
       module ClassMethods
-      
+
         public
-      
+
           # Create an instance of Cell from the node.
           #
-          # Additionally, parse the attributes and return them as a hash to the 
+          # Additionally, parse the attributes and return them as a hash to the
           # cell. If a cell's attributes look like:
           #
           #     <Attributes>
@@ -22,7 +22,7 @@ module Xeroizer
           #         <Id>account</Id>
           #       </Attribute>
           #     </Attributes>
-          # 
+          #
           # Return a hash like:
           #
           #     {
@@ -42,7 +42,7 @@ module Xeroizer
             end
             cell
           end
-          
+
         protected
 
           def parse_value(value)
@@ -52,7 +52,7 @@ module Xeroizer
               else                                          value
             end
           end
-        
+
           def parse_attribute(attribute_node)
             id = nil
             value = nil
@@ -65,10 +65,10 @@ module Xeroizer
             [id, value]
           end
       end
-    
+
       module InstanceMethods
       end
-    
+
     end
   end
 end
