@@ -2,7 +2,7 @@ module Xeroizer
   module Record
     module Payroll
 
-      class PayItemModel < PayrollBaseModel
+      class PayItemsModel < PayrollBaseModel
 
         set_permissions :read, :write, :update
 
@@ -11,7 +11,7 @@ module Xeroizer
         set_xml_node_name 'PayItems'
       end
 
-      class PayItem < PayrollBase
+      class PayItems < PayrollBase
 
         set_primary_key false
 
