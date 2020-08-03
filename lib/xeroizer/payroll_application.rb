@@ -26,7 +26,7 @@ module Xeroizer
 
     record :Employee
     record :Timesheet
-    record :PayItem
+    record :PayItems
     record :PayrollCalendar
     record :LeaveApplication
     record :PayRun
