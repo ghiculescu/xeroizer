@@ -40,6 +40,7 @@
         <IsExemptFromTax>false</IsExemptFromTax>
         <IsExemptFromSuper>false</IsExemptFromSuper>
         <IsReportableAsW1>true</IsReportableAsW1>
+        <AllowanceType>Other</AllowanceType>
         <UpdatedDateUTC>2013-04-09T23:45:25</UpdatedDateUTC>
       </EarningsRate>
       <EarningsRate>
@@ -52,6 +53,7 @@
         <IsExemptFromTax>true</IsExemptFromTax>
         <IsExemptFromSuper>true</IsExemptFromSuper>
         <IsReportableAsW1>true</IsReportableAsW1>
+        <AllowanceType>Other</AllowanceType>
         <UpdatedDateUTC>2013-04-09T23:45:25</UpdatedDateUTC>
       </EarningsRate>
       <EarningsRate>
