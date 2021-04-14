@@ -171,7 +171,7 @@ module Xeroizer
           actions.each_pair do |http_method, records_for_method|
             records_for_method.each_slice(chunk_size) do |some_records|
               request = to_bulk_xml(some_records)
-              response = parse_response(self.send(http_method, request, {:summarizeErrors => false}))
+              response = parse_response(self.send(http_method, request, {:summarizeErrors => false, :raw_body => true, :content_type => "application/xml"}))
               response.response_items.each_with_index do |record, i|
                 if record and record.is_a?(model_class)
                   some_records[i].attributes = record.non_calculated_attributes
