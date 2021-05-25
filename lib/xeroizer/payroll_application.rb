@@ -43,6 +43,7 @@ module Xeroizer
     record :EmployeeLeaveType # UK
     record :PayTemplate # UK
     record :SalaryAndWages # UK
+    record :PaymentMethod # UK
 
 
     def initialize(application)
