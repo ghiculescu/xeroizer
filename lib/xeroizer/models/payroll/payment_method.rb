@@ -2,7 +2,7 @@ module Xeroizer
   module Record
     module Payroll
 
-      class PaymentMethodsModel < PayrollBaseModel
+      class PaymentMethodModel < PayrollBaseModel
 
         set_permissions :read, :write
 
@@ -11,7 +11,7 @@ module Xeroizer
         end
       end
 
-      class PaymentMethods < PayrollBase
+      class PaymentMethod < PayrollBase
 
         string          :payment_method
         has_many        :bank_accounts
